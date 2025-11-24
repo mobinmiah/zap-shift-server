@@ -1,5 +1,5 @@
 const express = require('express')
-const cors= require('cors')
+const cors = require('cors')
 const app = express()
 const { MongoClient, ServerApiVersion } = require('mongodb');
 require('dotenv').config();
@@ -25,12 +25,48 @@ async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
+
+        const db = client.db("zap_shift_db")
+        const parcelCollection = db.collection("parcels")
+        const userCollection = db.collection("users")
+        const riderCollection = db.collection("riders")
+
+        // parcel apis
+        app.get('/parcels', async (req, res) => {
+            const query = {}
+            const cursor = parcelCollection.find(query)
+            const result = await cursor.toArray()
+            res.send(result)
+        })
+
+        app.post('/parcels', async (req, res) => {
+            const parcel = req.body
+            const result = await parcelCollection.insertOne(parcel)
+            res.send(result)
+        })
+
+        // user apis
+        app.get('/users', async (req, res) => {
+            const query = {}
+            const cursor = userCollection.find(query)
+            const result = await cursor.toArray()
+            res.send(result)
+        })
+
+        // rider apis
+        app.get('/riders', async (req, res) => {
+            const qurey = {}
+            const cursor = riderCollection.find(qurey)
+            const result = await cursor.toArray()
+            res.send(result)
+        })
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
         // Ensures that the client will close when you finish/error
-        await client.close();
+        // await client.close();
     }
 }
 run().catch(console.dir);
