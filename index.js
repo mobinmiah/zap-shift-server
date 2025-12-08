@@ -91,8 +91,8 @@ async function run() {
             const log = {
                 trackingId,
                 status,
-                details: status.split('-').join(' '),
-                cratedAt: new Date()
+                details: status.split('_').map(status => status.charAt(0).toUpperCase() + status.slice(1)).join(' '),
+                createdAt: new Date()
             }
             const result = await trackingsCollection.insertOne(log)
             return result
@@ -134,7 +134,8 @@ async function run() {
                 mode: 'payment',
                 metadata: {
                     parcelId: paymentInfo.parcelId,
-                    parcelName: paymentInfo.parcelName
+                    parcelName: paymentInfo.parcelName,
+                    trackingId: paymentInfo.trackingId
                 },
                 success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
                 cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`
@@ -245,15 +246,22 @@ async function run() {
                 }
 
                 // Update parcel with tracking & paid status
-                const trackingId = generateTrackingId();
+                const trackingId = session.metadata.trackingId;
                 const parcelId = session.metadata.parcelId;
 
                 await parcelCollection.updateOne(
                     { _id: new ObjectId(parcelId) },
-                    { $set: { paymentStatus: "paid", deliveryStatus: 'pending-pickup', trackingId: trackingId, transactionId: transactionId } }
+                    {
+                        $set: {
+                            paymentStatus: "paid",
+                            deliveryStatus: 'pending_pickup',
+
+                            transactionId: transactionId
+                        }
+                    }
                 );
 
-                logTracking(trackingId, 'pending-pickup')
+                logTracking(trackingId, 'pending_pickup')
 
                 // Create payment record
                 const payment = {
@@ -332,7 +340,10 @@ async function run() {
 
         app.post('/parcels', async (req, res) => {
             const parcel = req.body
+            const trackingId = generateTrackingId()
             parcel.createdAt = new Date()
+            parcel.trackingId = trackingId
+            logTracking(trackingId, 'parcel_created')
             const result = await parcelCollection.insertOne(parcel)
             res.send(result)
         })
@@ -537,6 +548,16 @@ async function run() {
                 const updateUser = {
                     $set: {
                         role: 'rider'
+                    }
+                }
+                const userResult = await userCollection.updateOne(userQuery, updateUser)
+            } else {
+                const email = req.body.email
+                const userQuery = { email }
+                const updateUser = {
+
+                    $set: {
+                        role: 'user'
                     }
                 }
                 const userResult = await userCollection.updateOne(userQuery, updateUser)
